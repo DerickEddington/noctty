@@ -40,12 +40,19 @@
 #endif
 
 
+#define verbose_print(msg)              \
+  if (verbose) {                        \
+    printf(msg);                        \
+    fflush(stdout);                     \
+  }
+
+
 static void
-print_tty(void)
+print_tty(bool const verbose)
 {
-  printf("Terminal is:\n");
+  verbose_print("Terminal is:\n")
   system("tty");
-  printf("------------------------------------------------------------\n\n");
+  verbose_print("------------------------------------------------------------\n\n")
 }
 
 
@@ -114,20 +121,34 @@ block_forever(void)
 static void
 print_help(FILE *stream, char const * const self)
 {
-  fprintf(stream, "Usage: %s [COMMAND]\n", self);
+  fprintf(stream, "Usage: %s [-v] [COMMAND]\n", self);
   fprintf(stream, "Relinquish the controlling terminal. Optionally, run a command.\n");
   fprintf(stream, "(Built from %s on %s.)\n", __COMMIT__, __DATE__);
 }
 
-static char const *
+
+typedef struct options {
+  char const *command;
+  bool verbose;
+} options;
+
+static options
 process_args(int const argc, char * const argv[])
 {
+  options opts = {
+    .command = NULL,
+    .verbose = false,
+  };
+
   int c;
-  while ((c = getopt(argc, argv, "h")) != -1) {
+  while ((c = getopt(argc, argv, "hv")) != -1) {
     switch (c) {
     case 'h':
       print_help(stdout, argv[0]);
       exit(EXIT_SUCCESS);
+      break;
+    case 'v':
+      opts.verbose = true;
       break;
     case '?':
       exit(EXIT_FAILURE);
@@ -138,33 +159,35 @@ process_args(int const argc, char * const argv[])
     }
   }
 
-  if (argc == 1) {
-    return NULL;
+  int const posargc = argc - optind;
+  char * const * const posargv = &argv[optind];
+
+  if (posargc >= 1) {
+    opts.command = posargv[0];
   }
-  else if (argc == 2) {
-    char const * const command = argv[1];
-    return command;
-  }
-  else {
+
+  if (posargc >= 2) {
     fprintf(stderr, "error: invalid arguments\n");
     fprintf(stderr, "\n");
     print_help(stderr, argv[0]);
     exit(EXIT_FAILURE);
   }
+
+  return opts;
 }
 
 
 int
 main(int const argc, char * const argv[])
 {
-  char const * const command = process_args(argc, argv);
+  options const opts = process_args(argc, argv);
 
-  print_tty();
+  print_tty(opts.verbose);
 
   relinquish_controlling_tty();
 
-  if (command) {
-    return run_given_command(command);
+  if (opts.command) {
+    return run_given_command(opts.command);
   }
   else {
     return block_forever();
