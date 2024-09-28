@@ -40,6 +40,14 @@
 #endif
 
 
+static void
+bail(char const * const msg)
+{
+  perror(msg);
+  exit(EXIT_FAILURE);
+}
+
+
 #define verbose_print(msg)              \
   if (verbose) {                        \
     printf(msg);                        \
@@ -51,7 +59,9 @@ static void
 print_tty(bool const verbose)
 {
   verbose_print("Terminal is:\n")
-  system("tty");
+  int const status = system("tty");
+  assert(WIFEXITED(status));
+  assert(WEXITSTATUS(status) == 0);
   verbose_print("------------------------------------------------------------\n\n")
 }
 
@@ -62,7 +72,7 @@ sighup_action(void(*action)(int))
   int const r = sigaction(SIGHUP,
                           &(struct sigaction const) { .sa_handler = action },
                           NULL);
-  if (r != 0) { perror("sigaction error"); }
+  if (r != 0) { bail("sigaction error"); }
 }
 
 static void
@@ -74,12 +84,12 @@ relinquish_controlling_tty(void)
 
   int const controlling_tty = open("/dev/tty", O_RDWR | O_NOCTTY);
   if (controlling_tty == -1) {
-    perror("error opening /dev/tty");
+    bail("error opening /dev/tty");
   }
 
   {
     int const r = ioctl(controlling_tty, TIOCNOTTY);
-    if (r == -1) { perror("ioctl error"); }
+    if (r == -1) { bail("ioctl error"); }
   }
 
   // Reinstate SIGHUP, just to go back to normal default.
@@ -105,16 +115,15 @@ run_given_command(char const * const command)
 }
 
 
-static int
+static void
 block_forever(void)
 {
   sem_t sem;
   int r = sem_init(&sem, false, 0);
-  if (r != 0) { perror("sem_init error"); }
+  if (r != 0) { bail("sem_init error"); }
 
   r = sem_wait(&sem);
-  if (r != 0) { perror("sem_wait error"); }
-  return r;
+  if (r != 0) { bail("sem_wait error"); }
 }
 
 
@@ -190,6 +199,6 @@ main(int const argc, char * const argv[])
     return run_given_command(opts.command);
   }
   else {
-    return block_forever();
+    block_forever();
   }
 }
