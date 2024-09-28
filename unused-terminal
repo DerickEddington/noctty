@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+# Create a new terminal window that is not yet the controlling terminal of anything.  The filename
+# of the new terminal device will be printed in the new terminal window, so you can know which it
+# is so you can direct whatever to use it.
+#
+# This can be useful with things like GDB (with its `tty $THE_NEW_TTY` command) or with any
+# arbitrary redirecting of output/input as desired.
+
+exec xdg-terminal 'exec noctty -v'
