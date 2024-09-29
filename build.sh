@@ -6,7 +6,10 @@ selfDir=$(dirname "$self") || exit
 selfDir=$(realpath "$selfDir") || exit
 readonly selfDir
 
-commit=$(cd "$selfDir" && git rev-parse --short HEAD) || exit
+commit=${1:-}
+if [ -z "$commit" ]; then
+    commit=$(cd "$selfDir" && git rev-parse --short HEAD) || exit
+fi
 readonly commit
 
 set -o xtrace
